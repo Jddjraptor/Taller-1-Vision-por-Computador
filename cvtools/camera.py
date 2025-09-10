@@ -10,7 +10,7 @@ def distorsion_radial(puntos, k1, k2):
     # Calcular r2
     r2 = x**2 + y**2
     
-    #Calcular factor de distorsión
+    # Calcular factor de distorsión
     factor = 1 + k1*r2 + k2*(r2**2)
     
     # Calcular x_corr, y_corr
