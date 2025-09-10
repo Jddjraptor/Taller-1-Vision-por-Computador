@@ -1,6 +1,5 @@
 import numpy as np
 from PIL import Image
-from scipy.ndimage import gaussian_filter
 
 def convolucion_generica(imagen, kernel):
 
@@ -29,40 +28,60 @@ def convolucion_generica(imagen, kernel):
                 for j in range(w):
                     region = padded[i:i+kh, j:j+kw]
                     salida[i, j, c] = np.sum(region * kernel)
-    
-    # Normalizar valores al rango válido
-    salida = np.clip(salida, 0, 255).astype(np.uint8)
+
     return salida
 
-def filtro_Sobel_X(imagen_gray):
+def filtro_Sobel_X(imagen):
 
+    # Aplicar filtro Sobel en X
     kernel_sobel_x = np.array([[-1, 0, 1],
                                [-2, 0, 2],
                                [-1, 0, 1]])
-    return convolucion_generica(imagen_gray, kernel_sobel_x)
+                               
+    return convolucion_generica(imagen, kernel_sobel_x)
 
-def filtro_Sobel_Y(imagen_gray):
+def filtro_Sobel_Y(imagen):
 
+    # Aplicar filtro Sobel en Y
     kernel_sobel_y = np.array([[-1, -2, -1],
                                [ 0,  0,  0],
                                [ 1,  2,  1]])
-    return convolucion_generica(imagen_gray, kernel_sobel_y)
+                               
+    return convolucion_generica(imagen, kernel_sobel_y)
 
-def sobel_filters(img):
+def suavizado_Gaussiano(imagen):
+
+    # Aplicar filtro Gaussiano
+    kernel_gaussiano = (1/16) * np.array([[1, 2, 1],
+                                          [2, 4, 2],
+                                          [1, 2, 1]])
     
-    G = np.hypot(Gx, Gy)        
-    G = G / G.max() * 255       
-    theta = np.arctan2(Gy, Gx)  
+    return convolucion_generica(imagen, kernel_gaussiano)
+
+def gradiente_Sobel(imagen):
+    
+    # Gradiente Sobel en X y Y
+    conv_X = filtro_Sobel_X(imagen)
+    conv_Y = filtro_Sobel_Y(imagen)
+    
+    # Magnitud del gradiente
+    G = np.hypot(conv_X, conv_Y)        
+    G = G / G.max() * 255
+    
+    # Dirección del gradiente
+    theta = np.arctan2(conv_X, conv_Y)  
     
     return (G, theta)
 
-def non_max_suppression(G, theta):
+def supresion_no_maxima(G, theta):
 
+    # Establecer dirección del borde
     h, w = G.shape
     Z = np.zeros((h,w), dtype=np.float32)
     angle = theta * 180. / np.pi
     angle[angle < 0] += 180
     
+    # Dejar sólo máximos locales
     for i in range(1,h-1):
         for j in range(1,w-1):
             q, r = 255, 255
@@ -84,18 +103,17 @@ def non_max_suppression(G, theta):
                 Z[i,j] = G[i,j]
             else:
                 Z[i,j] = 0
+    
     return Z
 
-def threshold(img, low, high):
+def umbralizacion_con_histeresis(img, low, high):
 
+    # Clasificar bordes débiles y fuertes
     strong = 255
     weak = 75
-    
     res = np.zeros_like(img, dtype=np.uint8)
-    
     strong_i, strong_j = np.where(img >= high)
     weak_i, weak_j = np.where((img >= low) & (img < high))
-    
     res[strong_i, strong_j] = strong
     res[weak_i, weak_j] = weak
     
@@ -108,20 +126,31 @@ def threshold(img, low, high):
                     res[i,j] = strong
                 else:
                     res[i,j] = 0
+    
     return res
 
-def canny_detector(imagen_gray, low_threshold=50, high_threshold=100, sigma=1.4):
+def detector_de_Canny(imagen, low_threshold=50, high_threshold=100):
 
-    # 1. Suavizado
-    imagen_suave = gaussian_filter(imagen_gray, sigma=sigma)
+    # 1. Suavizado Gaussiano
+    salida = suavizado_Gaussiano(imagen)
+    imagen_suave = np.clip(np.abs(salida), 0, 255).astype(np.uint8)
     
     # 2. Gradientes con Sobel
-    G, theta = sobel_filters(imagen_suave)
+    G, theta = gradiente_Sobel(imagen_suave)
     
     # 3. Supresión no máxima
-    nms = non_max_suppression(G, theta)
+    nms = supresion_no_maxima(G, theta)
     
-    # 4. Umbral doble + histéresis
-    salida = threshold(nms, low_threshold, high_threshold)
+    # 4. Umbralización con histéresis
+    salida_final = umbralizacion_con_histeresis(nms, low_threshold, high_threshold)
     
-    return salida
+    return salida_final
+
+def filtro_Laplaciano(imagen):
+
+    # Aplicar filtro Laplaciano
+    kernel_laplaciano = np.array([[ 0, -1,  0],
+                                  [-1,  4, -1],
+                                  [ 0, -1,  0]])
+
+    return convolucion_generica(imagen, kernel_laplaciano)
