@@ -5,11 +5,11 @@ import os
 
 def RGB_HSV(rgb):
     
-    #Normalizar
+    # Normalizar
     rgb = rgb.astype("float32") / 255.0
     R, G, B = rgb[...,0], rgb[...,1], rgb[...,2]
     
-    #Valores Intermedios
+    # Valores Intermedios
     Cmax = np.max(rgb, axis=-1)
     Cmin = np.min(rgb, axis=-1)
     delta = Cmax - Cmin
